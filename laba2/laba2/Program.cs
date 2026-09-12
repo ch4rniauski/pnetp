@@ -1,23 +1,46 @@
-﻿Task1();
-Console.WriteLine();
-Task2();
-Console.WriteLine();
-Task3();
+﻿while (true)
+{
+    Console.WriteLine("1 — Обработка UriFormatException");
+    Console.WriteLine("2 — Проверка значения на null");
+    Console.WriteLine("3 — Проверка номера банковской карты");
+    Console.WriteLine("0 — Выход");
+    Console.Write("Выберите задание: ");
+
+    var choice = Console.ReadLine();
+
+    switch (choice)
+    {
+        case "1":
+            Task1();
+            break;
+        case "2":
+            Task2();
+            break;
+        case "3":
+            Task3();
+            break;
+        case "0":
+            return;
+        default:
+            Console.WriteLine("Неверный выбор. Введите 0, 1, 2 или 3");
+            break;
+    }
+
+    Console.WriteLine();
+}
 
 void Task1()
 {
-    var readOnlyFilePath = Path.Combine(Path.GetTempPath(), $"laba2_readonly_{Guid.NewGuid():N}.txt");
-    File.WriteAllText(readOnlyFilePath, "test");
-    File.SetAttributes(readOnlyFilePath, FileAttributes.ReadOnly);
-
     try
     {
-        File.WriteAllText(readOnlyFilePath, "новые данные");
-        Console.WriteLine("Файл успешно записан.");
+        Console.Write("Введите URL: ");
+        var input = Console.ReadLine() ?? string.Empty;
+        var uri = new Uri(input);
+        Console.WriteLine($"URI корректен: {uri}");
     }
-    catch (UnauthorizedAccessException ex)
+    catch (UriFormatException ex)
     {
-        Console.WriteLine($"UnauthorizedAccessException: нет доступа — {ex.Message}");
+        Console.WriteLine($"UriFormatException: неверный формат URI — {ex.Message}");
     }
     catch (Exception ex)
     {
@@ -25,13 +48,7 @@ void Task1()
     }
     finally
     {
-        Console.WriteLine("Блок finally выполнен (задание 1).");
-
-        if (File.Exists(readOnlyFilePath))
-        {
-            File.SetAttributes(readOnlyFilePath, FileAttributes.Normal);
-            File.Delete(readOnlyFilePath);
-        }
+        Console.WriteLine("Блок finally выполнен");
     }
 }
 
@@ -39,21 +56,16 @@ void Task2()
 {
     try
     {
-        Console.Write("Введите строку: ");
-        var input = Console.ReadLine() ?? string.Empty;
+        Console.Write("Введите значение (или оставьте пустым для null): ");
+        var input = Console.ReadLine();
 
-        Console.Write("Минимальная длина: ");
-        var minLength = int.Parse(Console.ReadLine() ?? "0");
-
-        Console.Write("Максимальная длина: ");
-        var maxLength = int.Parse(Console.ReadLine() ?? "0");
-
-        ValidateStringLength(input, minLength, maxLength);
-        Console.WriteLine($"Строка принята. Длина: {input.Length}");
+        var value = string.IsNullOrWhiteSpace(input) ? null : input;
+        ValidateNotNull(value);
+        Console.WriteLine($"Значение принято: {value}");
     }
-    catch (ArgumentOutOfRangeException ex)
+    catch (NullReferenceException ex)
     {
-        Console.WriteLine($"ArgumentOutOfRangeException: {ex.Message}");
+        Console.WriteLine($"NullReferenceException: {ex.Message}");
     }
     catch (Exception ex)
     {
@@ -65,15 +77,15 @@ void Task3()
 {
     try
     {
-        Console.Write("Введите URL: ");
-        var url = Console.ReadLine() ?? string.Empty;
+        Console.Write("Введите номер банковской карты: ");
+        var cardNumber = Console.ReadLine() ?? string.Empty;
 
-        ValidateUrl(url);
-        Console.WriteLine($"URL корректен: {url}");
+        ValidateCardNumber(cardNumber);
+        Console.WriteLine($"Номер карты корректен: {cardNumber}");
     }
-    catch (InvalidUrlException ex)
+    catch (InvalidCardNumberException ex)
     {
-        Console.WriteLine($"InvalidUrlException: {ex.Message}");
+        Console.WriteLine($"InvalidCardNumberException: {ex.Message}");
     }
     catch (Exception ex)
     {
@@ -85,35 +97,40 @@ void Task3()
     }
 }
 
-void ValidateStringLength(string text, int minLength, int maxLength)
+void ValidateNotNull(string? value)
 {
-    if (minLength < 0 || maxLength < minLength)
+    if (value is null)
     {
-        throw new ArgumentException("Некорректный диапазон длины");
-    }
-
-    if (text.Length < minLength || text.Length > maxLength)
-    {
-        throw new ArgumentOutOfRangeException($"Длина строки должна быть от {minLength} до {maxLength} символов. Текущая длина: {text.Length}");
+        throw new NullReferenceException("Значение переменной не может быть null");
     }
 }
 
-void ValidateUrl(string url)
+void ValidateCardNumber(string cardNumber)
 {
-    if (string.IsNullOrWhiteSpace(url))
+    if (string.IsNullOrWhiteSpace(cardNumber))
     {
-        throw new InvalidUrlException("URL не может быть пустым");
+        throw new InvalidCardNumberException("Номер карты не может быть пустым");
     }
 
-    if (!url.StartsWith("http://") && !url.StartsWith("https://"))
+    if (cardNumber.Length != 16)
     {
-        throw new InvalidUrlException("URL должен начинаться с http:// или https://");
+        throw new InvalidCardNumberException("Номер карты должен содержать 16 цифр");
+    }
+
+    if (cardNumber[0] == '0')
+    {
+        throw new InvalidCardNumberException("Номер карты не должен начинаться на 0");
+    }
+
+    if (cardNumber.Any(digit => !char.IsDigit(digit)))
+    {
+        throw new InvalidCardNumberException("Номер карты должен содержать только цифры");
     }
 }
 
-internal class InvalidUrlException : Exception
+internal class InvalidCardNumberException : Exception
 {
-    public InvalidUrlException(string message) : base(message)
+    public InvalidCardNumberException(string message) : base(message)
     {
     }
 }
