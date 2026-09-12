@@ -1,94 +1,134 @@
-﻿Task1();
-Task2();
-await Task3();
+﻿while (true)
+{
+    Console.WriteLine("1 — CountdownEvent");
+    Console.WriteLine("2 — ParallelOptions");
+    Console.WriteLine("3 — ValueTask");
+    Console.WriteLine("0 — Выход");
+    Console.Write("Выберите задание: ");
+
+    var choice = Console.ReadLine();
+
+    switch (choice)
+    {
+        case "1":
+            Task1();
+            break;
+        case "2":
+            Task2();
+            break;
+        case "3":
+            Console.WriteLine(await Task3());
+            break;
+        case "0":
+            return;
+        default:
+            Console.WriteLine("Неверный выбор. Введите 0, 1, 2 или 3");
+            break;
+    }
+
+    Console.WriteLine();
+}
 
 void Task1()
 {
-    var counter = 0;
-    var threads = new Thread[10];
+    Console.WriteLine();
 
-    for (var i = 0; i < threads.Length; i++)
+    const int threadCount = 5;
+    using var countdown = new CountdownEvent(threadCount);
+
+    for (var i = 1; i <= threadCount; i++)
     {
-        threads[i] = new Thread(() =>
+        var id = i;
+        var thread = new Thread(() =>
         {
-            for (var j = 0; j < 1000; j++)
-            {
-                Interlocked.Increment(ref counter);
-            }
+            Console.WriteLine($"Поток {id} начал работу");
+            Thread.Sleep(500 * id);
+            Console.WriteLine($"Поток {id} завершил работу");
+            countdown.Signal();
         });
-        threads[i].Start();
+        thread.Start();
     }
 
-    foreach (var thread in threads)
-    {
-        thread.Join();
-    }
-
-    const int expected = 10_000;
-    Console.WriteLine($"Итоговое значение счетчика: {counter}");
-
-    if (counter != expected)
-    {
-        Console.WriteLine($"Ошибка: ожидалось {expected}, получено {counter}");
-    }
-    else
-    {
-        Console.WriteLine("Значение счетчика корректно");
-    }
+    Console.WriteLine("Ожидание завершения всех потоков");
+    countdown.Wait();
+    Console.WriteLine("Все потоки завершены");
 }
 
 void Task2()
 {
-    using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
-    var token = cts.Token;
-    var processed = 0;
+    Console.WriteLine();
 
-    try
+    Console.Write("Введите максимальную степень параллелизма (положительное число или -1 без ограничений): ");
+    var input = Console.ReadLine();
+
+    if (!int.TryParse(input, out var maxDegree) || (maxDegree < 1 && maxDegree != -1))
     {
-        Parallel.For(0, 1_000_000, new ParallelOptions { CancellationToken = token }, _ =>
+        Console.WriteLine("Ошибка: введите положительное целое число или -1");
+        return;
+    }
+
+    var options = new ParallelOptions
+    {
+        MaxDegreeOfParallelism = maxDegree
+    };
+
+    var current = 0;
+    var peak = 0;
+    var lockObj = new object();
+
+    Parallel.For(0, 20, options, i =>
+    {
+        int running;
+        lock (lockObj)
         {
-            Interlocked.Increment(ref processed);
-            Thread.SpinWait(1000);
+            current++;
+            running = current;
+            if (running > peak)
+            {
+                peak = running;
+            }
+        }
+
+        Console.WriteLine($"Итерация {i}, поток {Environment.CurrentManagedThreadId}, одновременно: {running}");
+        Thread.Sleep(100);
+
+        lock (lockObj)
+        {
+            current--;
+        }
+    });
+
+    Console.WriteLine($"Максимальная степень параллелизма: {maxDegree}");
+    Console.WriteLine($"Пиковое число одновременных потоков: {peak}");
+}
+
+async ValueTask<string> Task3()
+{
+    Console.WriteLine();
+
+    Console.Write("Введите ключ для получения данных: ");
+    var key = Console.ReadLine();
+
+    if (string.IsNullOrWhiteSpace(key))
+    {
+        return "Ошибка: ключ не может быть пустым";
+    }
+
+    var useAsync = false;
+
+    if (useAsync)
+    {
+        var result = await Task.Run(async () =>
+        {
+            await Task.Delay(1000);
+            return $"Результат для ключа '{key}'";
         });
-    }
-    catch (OperationCanceledException)
-    {
-        Console.WriteLine("Параллельная операция отменена");
-    }
-
-    if (processed == 0)
-    {
-        Console.WriteLine("Ошибка: не обработано ни одного элемента");
-    }
-    else
-    {
-        Console.WriteLine($"Обработано элементов до отмены: {processed}");
-    }
-}
-
-async Task Task3()
-{
-    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-
-    try
-    {
-        await LongRunningOperationAsync(cts.Token);
-        Console.WriteLine("Асинхронная операция завершена");
-    }
-    catch (OperationCanceledException)
-    {
-        Console.WriteLine("Асинхронная операция отменена");
-    }
-}
-
-async Task LongRunningOperationAsync(CancellationToken token)
-{
-    for (var step = 1; step <= 10; step++)
-    {
-        token.ThrowIfCancellationRequested();
         
-        await Task.Delay(500, token);
-        
-        Console.WriteLine($"Выполнен шаг {step}");
+        return result;
     }
+
+    var value = $"Результат для ключа '{key}'";
+    Console.WriteLine("Данные получены синхронно");
+    
+    return value;
 }
