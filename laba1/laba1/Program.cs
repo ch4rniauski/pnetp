@@ -31,12 +31,13 @@ while (true)
 
 void RunSecondsConvert()
 {
+    Console.WriteLine();
     Console.Write("Введите количество секунд: ");
     var input = Console.ReadLine();
 
     if (!int.TryParse(input, out var totalSeconds) || totalSeconds < 0)
     {
-        Console.WriteLine("Введите целое число секунд (0 или больше)");
+        Console.WriteLine("Введите целое число секунд (0 или больше)\n");
         return;
     }
 
@@ -44,11 +45,12 @@ void RunSecondsConvert()
     var minutes = (totalSeconds % 3600) / 60;
     var seconds = totalSeconds % 60;
 
-    Console.WriteLine($"{totalSeconds} сек. = {hours} ч. {minutes} мин. {seconds} сек.");
+    Console.WriteLine($"{totalSeconds} сек. = {hours} ч. {minutes} мин. {seconds} сек.\n");
 }
 
 void RunTimeDemo()
 {
+    Console.WriteLine();
     Console.Write("Часы (0-23): ");
     var hoursText = Console.ReadLine();
 
@@ -58,6 +60,7 @@ void RunTimeDemo()
     if (!Time.TryCreate(hoursText, minutesText, out var time, out var error))
     {
         Console.WriteLine(error);
+        Console.WriteLine();
         return;
     }
 
@@ -66,17 +69,20 @@ void RunTimeDemo()
     Console.Write("Сколько минут добавить: ");
     if (!int.TryParse(Console.ReadLine(), out var minutesToAdd))
     {
-        Console.WriteLine("Введите целое число");
+        Console.WriteLine("Введите целое число\n");
         return;
     }
 
     var newTime = time.AddMinutes(minutesToAdd);
     Console.Write("После добавления минут: ");
     newTime.PrintInfo();
+    Console.WriteLine();
 }
 
 void RunFigureDemo()
 {
+    Console.WriteLine();
+    
     var figures = new Figure[]
     {
         new Triangle(),
@@ -90,4 +96,6 @@ void RunFigureDemo()
         figure.Draw();
         Console.WriteLine("-----------------------------");
     }
+    
+    Console.WriteLine();
 }

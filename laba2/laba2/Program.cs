@@ -31,6 +31,8 @@
 
 void Task1()
 {
+    Console.WriteLine();
+
     try
     {
         Console.Write("Введите URL: ");
@@ -54,6 +56,8 @@ void Task1()
 
 void Task2()
 {
+    Console.WriteLine();
+
     try
     {
         Console.Write("Введите значение (или оставьте пустым для null): ");
@@ -75,6 +79,8 @@ void Task2()
 
 void Task3()
 {
+    Console.WriteLine();
+
     try
     {
         Console.Write("Введите номер банковской карты: ");

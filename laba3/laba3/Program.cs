@@ -1,30 +1,78 @@
-﻿Task1();
-Task2();
+﻿while (true)
+{
+    Console.WriteLine("1 — Демонстрация ArraySegment<T>");
+    Console.WriteLine("2 — Вычисление факториала 5!");
+    Console.WriteLine("0 — Выход");
+    Console.Write("Выберите задание: ");
+
+    var choice = Console.ReadLine();
+
+    switch (choice)
+    {
+        case "1":
+            Task1();
+            break;
+        case "2":
+            Task2();
+            break;
+        case "0":
+            return;
+        default:
+            Console.WriteLine("Неверный выбор. Введите 0, 1 или 2");
+            break;
+    }
+
+    Console.WriteLine();
+}
 
 void Task1()
 {
-    Console.WriteLine($"ОС: {Environment.OSVersion}");
-    Console.WriteLine($"Компьютер: {Environment.MachineName}");
-    Console.WriteLine($"Пользователь: {Environment.UserName}");
-    Console.WriteLine($"Процессоров: {Environment.ProcessorCount}");
-    Console.WriteLine($"Текущая директория: {Environment.CurrentDirectory}");
-    Console.WriteLine($"Версия .NET: {Environment.Version}");
-    Console.WriteLine($"64-разрядная ОС: {Environment.Is64BitOperatingSystem}");
-    Console.WriteLine($"64-разрядный процесс: {Environment.Is64BitProcess}");
+    Console.WriteLine();
+    
+    var array = new[] { 10, 20, 30, 40, 50, 60, 70 };
+
+    Console.Write("Исходный массив: ");
+    foreach (var x in array)
+    {
+        Console.Write($"{x} ");
+    }
+    Console.WriteLine();
+
+    var segment = new ArraySegment<int>(array, 2, 3);
+
+    Console.WriteLine($"Смещение сегмента: {segment.Offset}");
+    Console.WriteLine($"Количество элементов: {segment.Count}");
+
+    Console.Write("Элементы сегмента: ");
+    foreach (var t in segment)
+    {
+        Console.Write($"{t} ");
+    }
+    Console.WriteLine();
+
+    segment[0] = 99;
+    segment[1] = 88;
+    segment[2] = 77;
+
+    Console.Write("Массив после изменения сегмента: ");
+    foreach (var t in array)
+    {
+        Console.Write($"{t} ");
+    }
+    Console.WriteLine();
 }
 
 void Task2()
 {
-    var morning = DateTime.Today.AddHours(6);
-    var now = DateTime.Now;
+    Console.WriteLine();
 
-    if (now < morning)
+    const int n = 5;
+    var factorial = 1.0;
+
+    for (var i = 1; i <= n; i++)
     {
-        Console.WriteLine("С 6:00 утра ещё не прошло ни одной минуты");
-        return;
+        factorial = Math.Round(factorial * i);
     }
 
-    var elapsed = now - morning;
-    var minutes = (int)elapsed.TotalMinutes;
-    Console.WriteLine($"С 6:00 утра прошло минут: {minutes}");
+    Console.WriteLine($"{n}! = {factorial}");
 }
