@@ -2,8 +2,8 @@
 
 while (true)
 {
-    Console.WriteLine("1 — Проверка строки на палиндром");
-    Console.WriteLine("2 — Класс Dog");
+    Console.WriteLine("1 — Перевод секунд в часы и минуты");
+    Console.WriteLine("2 — Класс Time");
     Console.WriteLine("3 — Наследование и полиморфизм");
     Console.WriteLine("0 — Выход");
     Console.Write("Выберите задание: ");
@@ -13,95 +13,81 @@ while (true)
     switch (choice)
     {
         case "1":
-            RunPalindromeCheck();
+            RunSecondsConvert();
             break;
         case "2":
-            RunDogDemo();
+            RunTimeDemo();
             break;
         case "3":
-            RunPaymentDemo();
+            RunFigureDemo();
             break;
         case "0":
             return;
         default:
-            Console.WriteLine("Неверный выбор. Введите 0, 1, 2 или 3.");
+            Console.WriteLine("Неверный выбор. Введите 0, 1, 2 или 3");
             break;
     }
 }
 
-void RunPalindromeCheck()
+void RunSecondsConvert()
 {
-    Console.Write("Введите строку: ");
+    Console.Write("Введите количество секунд: ");
     var input = Console.ReadLine();
 
-    if (string.IsNullOrWhiteSpace(input))
+    if (!int.TryParse(input, out var totalSeconds) || totalSeconds < 0)
     {
-        Console.WriteLine("Строка не может быть пустой.");
+        Console.WriteLine("Введите целое число секунд (0 или больше)");
         return;
     }
 
-    var result = IsPalindrome(input);
-    Console.WriteLine(result ? "Строка является палиндромом." : "Строка не является палиндромом.");
+    var hours = totalSeconds / 3600;
+    var minutes = (totalSeconds % 3600) / 60;
+    var seconds = totalSeconds % 60;
+
+    Console.WriteLine($"{totalSeconds} сек. = {hours} ч. {minutes} мин. {seconds} сек.");
 }
 
-bool IsPalindrome(string text)
+void RunTimeDemo()
 {
-    var cleaned = text.ToLower().Replace(" ", "");
+    Console.Write("Часы (0-23): ");
+    var hoursText = Console.ReadLine();
 
-    for (var i = 0; i < cleaned.Length / 2; i++)
-    {
-        if (cleaned[i] != cleaned[cleaned.Length - 1 - i])
-        {
-            return false;
-        }
-    }
+    Console.Write("Минуты (0-59): ");
+    var minutesText = Console.ReadLine();
 
-    return true;
-}
-
-void RunDogDemo()
-{
-    Console.Write("Имя хозяина: ");
-    var ownerName = Console.ReadLine();
-
-    Console.Write("Кличка собаки: ");
-    var nickname = Console.ReadLine();
-
-    Console.Write("Порода: ");
-    var breed = Console.ReadLine();
-
-    if (!Dog.TryCreate(ownerName, nickname, breed, out var dog, out var error))
+    if (!Time.TryCreate(hoursText, minutesText, out var time, out var error))
     {
         Console.WriteLine(error);
         return;
     }
 
-    Console.WriteLine($"Собака: {dog!.Nickname}, порода: {dog.Breed}, хозяин: {dog.OwnerName}");
-    Console.Write("Сколько раз лаять: ");
+    time!.PrintInfo();
 
-    if (int.TryParse(Console.ReadLine(), out var count))
+    Console.Write("Сколько минут добавить: ");
+    if (!int.TryParse(Console.ReadLine(), out var minutesToAdd))
     {
-        Dog.Bark(count);
+        Console.WriteLine("Введите целое число");
+        return;
     }
-    else
-    {
-        Console.WriteLine("Введите целое число.");
-    }
+
+    var newTime = time.AddMinutes(minutesToAdd);
+    Console.Write("После добавления минут: ");
+    newTime.PrintInfo();
 }
 
-void RunPaymentDemo()
+void RunFigureDemo()
 {
-    var payments = new PaymentMethod[]
+    var figures = new Figure[]
     {
-        new CreditCard(1500, "**** 1234"),
-        new PayPal(2500, "user@mail.com"),
-        new CreditCard(500, "**** 5678"),
-        new PayPal(100, "shop@paypal.com")
+        new Triangle(),
+        new Rectangle(),
+        new Triangle(),
+        new Rectangle()
     };
 
-    foreach (var payment in payments)
+    foreach (var figure in figures)
     {
-        payment.ProcessPmnt();
+        figure.Draw();
         Console.WriteLine("-----------------------------");
     }
 }
