@@ -1,117 +1,118 @@
-﻿using System.Reflection;
-using System.Reflection.Emit;
-using Microsoft.CodeAnalysis.CSharp.Scripting;
-using Microsoft.CodeAnalysis.Scripting;
+﻿using System.Diagnostics;
+using System.Reflection;
+using System.Text;
 
-Task1();
-Task2();
-Task3();
-await Task4();
+while (true)
+{
+    Console.WriteLine("1 — LINQ: проверка All");
+    Console.WriteLine("2 — PLINQ: сравнение с LINQ");
+    Console.WriteLine("3 — Рефлексия: сериализация в JSON");
+    Console.WriteLine("4 — DLR: паттерн Посетитель");
+    Console.WriteLine("0 — Выход");
+    Console.Write("Выберите задание: ");
+
+    var choice = Console.ReadLine();
+
+    switch (choice)
+    {
+        case "1":
+            Task1();
+            break;
+        case "2":
+            Task2();
+            break;
+        case "3":
+            Task3();
+            break;
+        case "4":
+            Task4();
+            break;
+        case "0":
+            return;
+        default:
+            Console.WriteLine("Неверный выбор. Введите 0, 1, 2, 3 или 4");
+            break;
+    }
+
+    Console.WriteLine();
+}
 
 void Task1()
 {
-    var employees = new List<Employee>
-    {
-        new("IT", 3500),
-        new("HR", 2800),
-        new("IT", 4200),
-        new("Финансы", 3100),
-        new("HR", 2600),
-        new("Финансы", 3300)
-    };
+    Console.WriteLine();
+    
+    var numbers = new List<int> { 2, 4, 6, 8, 10 };
 
-    var averageByDepartment = employees
-        .GroupBy(e => e.Department)
-        .Select(g => new { Department = g.Key, AverageSalary = g.Average(e => e.Salary) })
-        .OrderBy(x => x.Department);
+    Console.WriteLine($"Исходный список: {string.Join(", ", numbers)}");
 
-    foreach (var item in averageByDepartment)
-    {
-        Console.WriteLine($"{item.Department}: средняя зарплата = {item.AverageSalary:F2}");
-    }
+    var allEven = numbers.All(n => n % 2 == 0);
+    var allPositive = numbers.All(n => n > 0);
+    var allGreaterThanFive = numbers.All(n => n > 5);
+
+    Console.WriteLine($"Все числа чётные: {allEven}");
+    Console.WriteLine($"Все числа положительные: {allPositive}");
+    Console.WriteLine($"Все числа больше 5: {allGreaterThanFive}");
 }
 
 void Task2()
 {
-    var sales = Enumerable.Range(1, 500_000)
-        .Select(i => new Sale(i % 5, i * 1.5m))
-        .ToList();
+    Console.WriteLine();
+    
+    var numbers = Enumerable.Range(1, 50_000_000).ToArray();
 
-    var grouped = sales
+    var stopwatch = Stopwatch.StartNew();
+    
+    var linqResult = numbers
+        .Where(HeavyIsEven)
+        .Count();
+    
+    stopwatch.Stop();
+    var linqMs = stopwatch.ElapsedMilliseconds;
+
+    stopwatch.Restart();
+    
+    var plinqResult = numbers
         .AsParallel()
-        .GroupBy(s => s.RegionId)
-        .Select(g => new
-        {
-            RegionId = g.Key,
-            Count = g.Count(),
-            TotalAmount = g.Sum(s => s.Amount)
-        })
-        .OrderBy(g => g.RegionId);
+        .Where(HeavyIsEven)
+        .Count();
+    
+    stopwatch.Stop();
+    var plinqMs = stopwatch.ElapsedMilliseconds;
 
-    foreach (var group in grouped)
+    Console.WriteLine($"LINQ: результат = {linqResult}, время = {linqMs} мс");
+    Console.WriteLine($"PLINQ: результат = {plinqResult}, время = {plinqMs} мс");
+
+    if (linqMs < plinqMs)
     {
-        Console.WriteLine($"Регион {group.RegionId}: продаж = {group.Count}, сумма = {group.TotalAmount:F2}");
+        Console.WriteLine("LINQ выполнен быстрее");
+    }
+    else if (plinqMs < linqMs)
+    {
+        Console.WriteLine("PLINQ выполнен быстрее");
+    }
+    else
+    {
+        Console.WriteLine("Время выполнения одинаковое");
     }
 }
 
 void Task3()
 {
-    var assemblyName = new AssemblyName("DynamicAssembly");
-    var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
-    var moduleBuilder = assemblyBuilder.DefineDynamicModule("MainModule");
-    var typeBuilder = moduleBuilder.DefineType("Greeter", TypeAttributes.Public | TypeAttributes.Class);
-
-    var nameField = typeBuilder.DefineField("_name", typeof(string), FieldAttributes.Private);
-
-    var ctorBuilder = typeBuilder.DefineConstructor(
-        MethodAttributes.Public,
-        CallingConventions.Standard,
-        [typeof(string)]);
-
-    var ctorIl = ctorBuilder.GetILGenerator(); // получить IL-генератор для конструктора
-    ctorIl.Emit(OpCodes.Ldarg_0); // загрузить аргумент 0 (this) на стек
-    ctorIl.Emit(OpCodes.Call, typeof(object).GetConstructor(Type.EmptyTypes)!); // вызвать конструктор object (base) (this передается как аргумент)
-    ctorIl.Emit(OpCodes.Ldarg_0); // загрузить аргумент 0 (this) на стек
-    ctorIl.Emit(OpCodes.Ldarg_1); // положить аргумент 1 (name) на стек
-    ctorIl.Emit(OpCodes.Stfld, nameField); // присвоить верхнее значение из стека (name) в nameField предпоследнего объекта (this)
-    ctorIl.Emit(OpCodes.Ret); // завершить выполнение конструктора
-
-    var greetMethod = typeBuilder.DefineMethod(
-        "Greet",
-        MethodAttributes.Public,
-        typeof(string),
-        Type.EmptyTypes);
-
-    var greetIl = greetMethod.GetILGenerator(); // получить IL-генератор для метода
-    greetIl.Emit(OpCodes.Ldstr, "Привет, "); // загрузить строку "Привет, " на стек
-    greetIl.Emit(OpCodes.Ldarg_0); // загрузить аргумент 0 (this) на стек
-    greetIl.Emit(OpCodes.Ldfld, nameField); // взять верхнее значение из стека (this),
-                                            // попытаться прочитать у него nameField,
-                                            // загрузить значение nameField на стек
-    greetIl.Emit(
-        OpCodes.Call,
-        typeof(string).GetMethod("Concat", [typeof(string), typeof(string)])!); // вызвать метод Concat, взяв со стека (nameField + "Привет, ")
-                                                                                // (берется со стека сверху вниз, но в параметры передаются справа налево).
-                                                                                // Результат вызова метода загрузить на стек
-    greetIl.Emit(OpCodes.Ret); // завершить выполнение метода и вернуть результат
+    Console.WriteLine();
+    
+    var person = new Person("Евгений", 45, "Варшава");
 
     try
     {
-        var type = typeBuilder.CreateType();
-        
-        var instance = Activator.CreateInstance(type, "Алексей");
-        
-        var method = type.GetMethod("Greet") 
-            ?? throw new InvalidOperationException("Метод Greet не найден");
-            
-        var greeting = (string?)method.Invoke(instance, []);
-        
-        if (string.IsNullOrEmpty(greeting))
+        var json = SerializeToJson(person);
+
+        if (string.IsNullOrEmpty(json))
         {
-            throw new InvalidOperationException("Метод Greet вернул пустой результат");
+            Console.WriteLine("Ошибка: JSON пуст");
+            return;
         }
-        
-        Console.WriteLine(greeting);
+
+        Console.WriteLine(json);
     }
     catch (Exception ex)
     {
@@ -119,63 +120,152 @@ void Task3()
     }
 }
 
-async Task Task4()
+void Task4()
 {
-    const string script = "int x = 5;";
-    const string continuation = "x + 1";
+    Console.WriteLine();
 
-    try
+    var shapes = new List<IShape>
     {
-        var state = await CSharpScript.RunAsync(script);
-        var resultState = await state.ContinueWithAsync<int>(continuation);
+        new Circle { Radius = 5 },
+        new Rectangle { Width = 4, Height = 6 },
+        new Triangle { A = 3, B = 4, C = 5 }
+    };
 
-        Console.WriteLine($"Результат выполнения скрипта: {resultState.ReturnValue}");
-    }
-    catch (CompilationErrorException ex)
+    var visitor = new ShapeVisitor();
+
+    foreach (var shape in shapes)
     {
-        Console.WriteLine($"Ошибка компиляции скрипта: {string.Join(", ", ex.Diagnostics)}");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Ошибка выполнения скрипта: {ex.Message}");
-    }
-
-    var scriptPath = Path.Combine(AppContext.BaseDirectory, "script.csx");
-
-    if (!File.Exists(scriptPath))
-    {
-        Console.WriteLine("Ошибка: файл скрипта не найден");
-        return;
-    }
-
-    var fileScript = await File.ReadAllTextAsync(scriptPath);
-
-    if (string.IsNullOrWhiteSpace(fileScript))
-    {
-        Console.WriteLine("Ошибка: скрипт из файла пуст");
-        return;
-    }
-
-    try
-    {
-        var options = ScriptOptions.Default
-            .WithImports("System.Linq")
-            .WithReferences(typeof(Enumerable).Assembly);
-
-        dynamic result = await CSharpScript.EvaluateAsync(fileScript, options);
-
-        Console.WriteLine($"Результат выполнения скрипта из файла: {result}");
-    }
-    catch (CompilationErrorException ex)
-    {
-        Console.WriteLine($"Ошибка компиляции скрипта из файла: {string.Join(", ", ex.Diagnostics)}");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Ошибка выполнения скрипта из файла: {ex.Message}");
+        try
+        {
+            shape.Accept(visitor);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка: {ex.Message}");
+        }
     }
 }
 
-internal record Employee(string Department, decimal Salary);
+bool HeavyIsEven(int number)
+{
+    var value = Math.Sqrt(number) * Math.Log(number + 1);
+    return number % 2 == 0 && value >= 0;
+}
 
-internal record Sale(int RegionId, decimal Amount);
+string SerializeToJson(object? obj)
+{
+    if (obj is null)
+    {
+        return "null";
+    }
+
+    var type = obj.GetType();
+    var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+
+    if (properties.Length == 0)
+    {
+        return "{}";
+    }
+
+    var builder = new StringBuilder();
+    builder.Append('{');
+
+    for (var i = 0; i < properties.Length; i++)
+    {
+        var property = properties[i];
+        var value = property.GetValue(obj);
+        var formattedValue = FormatJsonValue(value);
+
+        builder.Append('"');
+        builder.Append(property.Name);
+        builder.Append("\": ");
+        builder.Append(formattedValue);
+
+        if (i < properties.Length - 1)
+        {
+            builder.Append(", ");
+        }
+    }
+
+    builder.Append('}');
+    return builder.ToString();
+}
+
+string FormatJsonValue(object? value)
+{
+    return value switch
+    {
+        null => "null",
+        string text => $"\"{text}\"",
+        bool flag => flag ? "true" : "false",
+        _ => value.ToString() ?? "null"
+    };
+}
+
+internal interface IShapeVisitor
+{
+    void Visit(Circle circle);
+    void Visit(Rectangle rectangle);
+    void Visit(Triangle triangle);
+}
+
+internal interface IShape
+{
+    public void Accept(dynamic visitor);
+}
+
+internal class Circle : IShape
+{
+    public double Radius { get; init; }
+
+    public void Accept(dynamic visitor)
+    {
+        visitor.Visit(this);
+    }
+}
+
+internal class Rectangle : IShape
+{
+    public double Width { get; init; }
+    public double Height { get; init; }
+
+    public void Accept(dynamic visitor)
+    {
+        visitor.Visit(this);
+    }
+}
+
+internal class Triangle : IShape
+{
+    public double A { get; init; }
+    public double B { get; init; }
+    public double C { get; init; }
+
+    public void Accept(dynamic visitor)
+    {
+        visitor.Visit(this);
+    }
+}
+
+internal class ShapeVisitor : IShapeVisitor
+{
+    public void Visit(Circle circle)
+    {
+        var area = Math.PI * circle.Radius * circle.Radius;
+        Console.WriteLine($"Круг: радиус = {circle.Radius}, площадь = {area:F2}");
+    }
+
+    public void Visit(Rectangle rectangle)
+    {
+        var area = rectangle.Width * rectangle.Height;
+        Console.WriteLine($"Прямоугольник: {rectangle.Width}x{rectangle.Height}, площадь = {area:F2}");
+    }
+
+    public void Visit(Triangle triangle)
+    {
+        var perimeter = triangle.A + triangle.B + triangle.C;
+        Console.WriteLine($"Треугольник: стороны = {triangle.A}, {triangle.B}, {triangle.C}, периметр = {perimeter:F2}");
+    }
+}
+
+internal record Person(string Name, int Age, string City);
