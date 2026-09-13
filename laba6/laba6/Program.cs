@@ -1,174 +1,139 @@
-﻿Task1();
-Console.WriteLine();
-Task2();
-Console.WriteLine();
-Task3();
+﻿while (true)
+{
+    Console.WriteLine("1 — stackalloc и Span<byte>");
+    Console.WriteLine("2 — Частота сборки Gen 0");
+    Console.WriteLine("3 — Потокобезопасный ресурс");
+    Console.WriteLine("0 — Выход");
+    Console.Write("Выберите задание: ");
+
+    var choice = Console.ReadLine();
+
+    switch (choice)
+    {
+        case "1":
+            Task1();
+            break;
+        case "2":
+            Task2();
+            break;
+        case "3":
+            Task3();
+            break;
+        case "0":
+            return;
+        default:
+            Console.WriteLine("Неверный выбор. Введите 0, 1, 2 или 3");
+            break;
+    }
+
+    Console.WriteLine();
+}
 
 void Task1()
 {
-    const int iterations = 10_000;
-    const int poolSize = 100;
-    var pool = new PersonPool(poolSize);
-    var memoryBefore = GC.GetTotalMemory(true);
+    Console.WriteLine();
+    
+    Span<byte> buffer = stackalloc byte[256];
+    buffer.Fill(2);
 
-    for (var i = 0; i < iterations; i++)
+    var sum = 0;
+    foreach (var t in buffer)
     {
-        var person = pool.Get();
-        person.Name = $"User{i}";
-        person.Age = i % 100;
-        pool.Return(person);
+        sum += t;
     }
 
-    var memoryAfter = GC.GetTotalMemory(false);
-
-    Console.WriteLine($"Память до: {memoryBefore} байт");
-    Console.WriteLine($"Память после: {memoryAfter} байт");
-    Console.WriteLine($"Размер пула: {poolSize}");
-    Console.WriteLine($"Создано новых объектов: {pool.CreatedCount}");
-    Console.WriteLine($"Повторно использовано из пула: {pool.ReusedCount}");
-    Console.WriteLine($"Всего операций: {iterations}");
+    Console.WriteLine($"Размер буфера на стеке: {buffer.Length} байт");
+    Console.WriteLine($"Первый байт: {buffer[0]}");
+    Console.WriteLine($"Последний байт: {buffer[^1]}");
+    Console.WriteLine($"Сумма байтов: {sum}");
 }
 
 void Task2()
 {
-    var gen2Obj = new object();
-    GC.Collect(0);
-    GC.WaitForPendingFinalizers();
-    GC.Collect(1);
-    GC.WaitForPendingFinalizers();
+    Console.WriteLine();
 
-    var gen1Obj = new object();
-    GC.Collect(0);
-    GC.WaitForPendingFinalizers();
+    const int objectCount = 1_000_000;
+    var collectionsBefore = GC.CollectionCount(0);
 
-    var tracked = new List<object>();
-    for (var i = 0; i < 500; i++)
+    for (var i = 0; i < objectCount; i++)
     {
-        tracked.Add(new object());
+        _ = new object();
     }
 
-    tracked.Add(gen1Obj);
-    tracked.Add(gen2Obj);
+    var collectionsAfter = GC.CollectionCount(0);
+    var collections = collectionsAfter - collectionsBefore;
 
-    PrintGenerationCounts(tracked, "До GC.Collect()");
-    GC.Collect();
-    GC.WaitForPendingFinalizers();
-    PrintGenerationCounts(tracked, "После GC.Collect()");
-}
-
-void PrintGenerationCounts(List<object> objects, string label)
-{
-    var gen0 = 0;
-    var gen1 = 0;
-    var gen2 = 0;
-
-    foreach (var obj in objects)
-    {
-        var generation = GC.GetGeneration(obj);
-        switch (generation)
-        {
-            case 0:
-                gen0++;
-                break;
-            case 1:
-                gen1++;
-                break;
-            default:
-                gen2++;
-                break;
-        }
-    }
-
-    Console.WriteLine($"{label}: Gen 0 = {gen0}, Gen 1 = {gen1}, Gen 2 = {gen2}");
+    Console.WriteLine($"Создано мелких объектов: {objectCount}");
+    Console.WriteLine($"Сборок Gen 0 до: {collectionsBefore}");
+    Console.WriteLine($"Сборок Gen 0 после: {collectionsAfter}");
+    Console.WriteLine($"Произошло сборок Gen 0: {collections}");
 }
 
 void Task3()
 {
-    ResourceHolder.ResetFinalizerFlag();
+    Console.WriteLine();
 
-    using (new ResourceHolder())
+    using var resource = new ThreadSafeResource("data.txt");
+
+    var threads = new Thread[5];
+    for (var i = 0; i < threads.Length; i++)
     {
+        var threadId = i + 1;
+        threads[i] = new Thread(() =>
+        {
+            for (var j = 0; j < 5; j++)
+            {
+                resource.WriteLine($"Поток {threadId}, запись {j + 1}");
+            }
+        });
+        threads[i].Start();
     }
 
-    GC.Collect();
-    GC.WaitForPendingFinalizers();
-    GC.Collect();
+    foreach (var t in threads)
+    {
+        t.Join();
+    }
 
-    Console.WriteLine(ResourceHolder.FinalizerCalled 
-        ? "Финализатор был вызван после Dispose"
-        : "Финализатор не вызван после явного Dispose");
+    Console.WriteLine($"Всего записей: {resource.WriteCount}");
+    Console.WriteLine("Ресурс использован в нескольких потоках");
 }
 
-internal class Person
+internal class ThreadSafeResource : IDisposable
 {
-    public string Name { get; set; } = string.Empty;
-    public int Age { get; set; }
-
-    public void Reset()
-    {
-        Name = string.Empty;
-        Age = 0;
-    }
-}
-
-internal class PersonPool
-{
-    private readonly Stack<Person> _pool = new();
-    private readonly int _maxSize;
-
-    public int CreatedCount { get; private set; }
-    public int ReusedCount { get; private set; }
-
-    public PersonPool(int maxSize)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxSize);
-
-        _maxSize = maxSize;
-    }
-
-    public Person Get()
-    {
-        if (_pool.Count > 0)
-        {
-            ReusedCount++;
-            return _pool.Pop();
-        }
-
-        CreatedCount++;
-        return new Person();
-    }
-
-    public void Return(Person? person)
-    {
-        if (person is null)
-        {
-            return;
-        }
-
-        person.Reset();
-        if (_pool.Count < _maxSize)
-        {
-            _pool.Push(person);
-        }
-    }
-}
-
-internal class ResourceHolder : IDisposable
-{
+    private readonly object _sync = new();
+    private StreamWriter? _writer;
     private bool _disposed;
 
-    public static bool FinalizerCalled { get; private set; }
+    public int WriteCount { get; private set; }
 
-    public static void ResetFinalizerFlag()
+    public ThreadSafeResource(string filePath)
     {
-        FinalizerCalled = false;
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            throw new ArgumentException("Путь к файлу не может быть пустым", nameof(filePath));
+        }
+
+        _writer = new StreamWriter(filePath, append: false);
     }
 
-    ~ResourceHolder()
+    public void WriteLine(string text)
     {
-        Console.WriteLine("Финализация объекта ResourceHolder");
-        
-        FinalizerCalled = true;
+        lock (_sync)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+
+            if (_writer is null)
+            {
+                throw new InvalidOperationException("Ресурс недоступен");
+            }
+
+            _writer.WriteLine(text);
+            WriteCount++;
+        }
+    }
+
+    ~ThreadSafeResource()
+    {
         Dispose(false);
     }
 
@@ -180,16 +145,20 @@ internal class ResourceHolder : IDisposable
 
     private void Dispose(bool disposing)
     {
-        if (_disposed)
+        lock (_sync)
         {
-            return;
-        }
+            if (_disposed)
+            {
+                return;
+            }
 
-        if (disposing)
-        {
-            Console.WriteLine("Освобождение ресурсов ResourceHolder с помощью Dispose");
-        }
+            if (disposing)
+            {
+                _writer?.Dispose();
+                _writer = null;
+            }
 
-        _disposed = true;
+            _disposed = true;
+        }
     }
 }
